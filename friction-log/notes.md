@@ -88,6 +88,63 @@ Once deployed, I was able to see a familiar CDK-style deploy confirmation and re
 
 The nice thing here is that I get my expected output: AppSync endpoint, API ID, and API Key.
 
-So far so good.
+So far so good, though I don't see my resolvers in my local project.
 
-### Frontend Deployment
+Verifying the deployment in the AWS console, I notice the following:
+![appsync api name](./images/api-name.png)
+
+1. The AppSync API has a `-NONE` suffix. I'm not sure what this relates to and how/if I can configure that.
+2. There's an additional datasource I forgot to account for, the `NONE` datasource for subscriptions.
+3. **X-Ray is turned off in the settings.** But in the intellisense docs, it's listed as defaulting to enabled. I'll come back to this later on.
+
+![appsync api intellsense](./images/appsync-api-intellisense.png)
+
+4. The biggest thing: This uses VTL. I'm torn here. I don't want to push VTL at all. However, the idea here is that customers won't have to worry about this. This is a tradeoff that customers should be aware of upfront. What I don't like about generated VTL is that our generation of it tends to be very verbose so that I can be generic. This makes it difficult to modify. I'll explore this later on in this branch.
+
+At this point, this feels like Amplify CLI with more steps. What I mean is that I can _imagine_ the benefits, but it's taking some mental gymnastics. Hopefully by the end of this branch I'll have some of these cleared up.
+
+### Generating Code for Frontend
+
+I'm assuming this will be pretty straighforward. From the `README`, looks like I just need to run the following command:
+
+```sh
+npm run generate
+```
+
+> Error: [1/5] pulling Api Config
+> Caught exception while executing generate script Error: Region is missing
+
+It's worth noting that as someone extremely familiar with the CLI and that defaults to building with the CDK, every error that pops up lessens my trust and gets me thinking "I should just use Amplify CLI/CDK. The feedback here is that proper error handling will be crucial for adoption.
+
+Let's see if I can debug this...
+
+Per the error messageIt's failing on step 1. Looking in the `generate.mjs` file it's calling `getApiConfig`. All the AppSync API defaults look fine, but it's in search of a stack called `TestStack`. Poking around in CloudFormation (something a customer wouldn't be expected to do), I see the stack is there. Hmmm...looking in Slack and looks like Ryan has a thread going on this exact issue.
+
+It's unresolved 😩
+
+Looks like it's failing on this line:
+
+```ts
+const results = await new cfn.CloudFormationClient().send(
+	new cfn.DescribeStacksCommand()
+)
+```
+
+I added a region:
+
+```diff
+const results = await new cfn.CloudFormationClient().send(
+-	new cfn.DescribeStacksCommand()
++	new cfn.DescribeStacksCommand({region:"us-east-1"})
+)
+```
+
+As expected, this results in the following error:
+
+> "Caught exception while executing generate script CredentialsProviderError: Could not load credentials from any providers"
+
+I'd have to instantiate a client to provide temporary SSO credentials based on the SSO profile I'm using.
+
+[Ain't nobody got time for that.](https://chat.openai.com/share/b960825a-d2d7-4e22-9583-d4cce9dfdfc6)
+
+Stopping here due to SSO support lacking.
