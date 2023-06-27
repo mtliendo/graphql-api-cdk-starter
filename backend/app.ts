@@ -1,23 +1,28 @@
 #!/usr/bin/env node
-import 'source-map-support/register';
-import * as cdk from 'aws-cdk-lib';
-import * as lambda from 'aws-cdk-lib/aws-lambda-nodejs';
-import * as iam from 'aws-cdk-lib/aws-iam';
-import { AmplifyGraphqlApi } from 'agqlac';
-import * as path from 'path';
+import 'source-map-support/register'
+import * as cdk from 'aws-cdk-lib'
+import * as lambda from 'aws-cdk-lib/aws-lambda-nodejs'
+import * as iam from 'aws-cdk-lib/aws-iam'
+import { AmplifyGraphqlApi } from 'agqlac'
+import * as path from 'path'
 
-const app = new cdk.App();
-const stack = new cdk.Stack(app, 'TestStack');
+const app = new cdk.App()
+const stack = new cdk.Stack(app, 'TestStack', {
+	env: {
+		account: '842537737558',
+		region: 'us-east-1',
+	},
+})
 
 /**
  * Function which we're referencing in the custom mutation.
  */
 new lambda.NodejsFunction(stack, 'EchoFunction', {
-  functionName: 'repeat',
-  entry: path.join(__dirname, 'repeat.ts'),
-});
+	functionName: 'repeat',
+	entry: path.join(__dirname, 'repeat.ts'),
+})
 
-const adminRole = iam.Role.fromRoleName(stack, 'adminRole', 'Admin'); // This is assuming you have an `Admin` role on your account
+const adminRole = iam.Role.fromRoleName(stack, 'adminRole', 'Admin') // This is assuming you have an `Admin` role on your account
 
 /**
  * Create an Api with a single todo model that anybody using apiKey can perform full ops on.
@@ -25,39 +30,39 @@ const adminRole = iam.Role.fromRoleName(stack, 'adminRole', 'Admin'); // This is
  * And a custom query which invokes the lambda defined above.
  */
 new AmplifyGraphqlApi(stack, 'GraphqlApi', {
-  schema: /* GraphQL */ `
-    type Todo @model @auth(rules: [{ allow: public }]) {
-      description: String!
-      completed: Boolean
-    }
+	schema: /* GraphQL */ `
+		type Todo @model @auth(rules: [{ allow: public }]) {
+			description: String!
+			completed: Boolean
+		}
 
-    type Blog @model @auth(rules: [{ allow: public, operations: [read] }]) {
-      title: String!
-      description: String
-      authors: [String]
-      posts: [Post] @hasMany
-    }
+		type Blog @model @auth(rules: [{ allow: public, operations: [read] }]) {
+			title: String!
+			description: String
+			authors: [String]
+			posts: [Post] @hasMany
+		}
 
-    type Post @model @auth(rules: [{ allow: public, operations: [read] }]) {
-      title: String!
-      content: [String]
-      blog: Blog @belongsTo
-    }
+		type Post @model @auth(rules: [{ allow: public, operations: [read] }]) {
+			title: String!
+			content: [String]
+			blog: Blog @belongsTo
+		}
 
-    type Query {
-      repeatAfterMe(message: String): String @function(name: "repeat")
-    }
-  `,
-  authorizationConfig: {
-    defaultAuthMode: 'API_KEY',
-    apiKeyConfig: {
-      description: 'Api Key for public access',
-      expires: cdk.Duration.days(30),
-    },
-    iamConfig: {
-      authRole: adminRole,
-      unauthRole: adminRole,
-      adminRoles: [adminRole],
-    }
-  },
-});
+		type Query {
+			repeatAfterMe(message: String): String @function(name: "repeat")
+		}
+	`,
+	authorizationConfig: {
+		defaultAuthMode: 'API_KEY',
+		apiKeyConfig: {
+			description: 'Api Key for public access',
+			expires: cdk.Duration.days(30),
+		},
+		iamConfig: {
+			authRole: adminRole,
+			unauthRole: adminRole,
+			adminRoles: [adminRole],
+		},
+	},
+})
