@@ -75,7 +75,7 @@ const stack = new cdk.Stack(app, 'TestStack', {
 ```diff
 // package.json
 - "deploy": "cdk deploy"
-- "deploy": "cdk deploy --profile focus-otter-sandbox"
++ "deploy": "cdk deploy --profile focus-otter-sandbox"
 ```
 
 ```sh
